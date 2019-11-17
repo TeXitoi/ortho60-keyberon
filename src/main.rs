@@ -123,10 +123,6 @@ const APP: () = {
         let mut gpiob = c.device.GPIOB.split(&mut rcc.apb2);
         let mut gpioc = c.device.GPIOC.split(&mut rcc.apb2);
 
-        let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
-        led.set_high().void_unwrap();
-        let leds = Leds { caps_lock: led };
-
         // set 0x1 in DR10 for dfu on reset
         let bkp = rcc
             .bkp
@@ -138,6 +134,10 @@ const APP: () = {
         let mut usb_dp = gpioa.pa12.into_push_pull_output(&mut gpioa.crh);
         usb_dp.set_low().unwrap();
         cortex_m::asm::delay(clocks.sysclk().0 / 100);
+
+        let mut led = gpioc.pc13.into_push_pull_output(&mut gpioc.crh);
+        led.set_low().void_unwrap();
+        let leds = Leds { caps_lock: led };
 
         let usb_dm = gpioa.pa11;
         let usb_dp = usb_dp.into_floating_input(&mut gpioa.crh);
