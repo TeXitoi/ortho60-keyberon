@@ -119,10 +119,6 @@ const APP: () = {
             .pclk1(24.mhz())
             .freeze(&mut flash.acr);
 
-        // set 0x1 in DR10 for dfu on reset
-        let bkp = rcc.bkp.constrain(c.device.BKP, &mut rcc.apb1, &mut c.device.PWR);
-        bkp.write_data_register_low(9, 1);
-
         let mut gpioa = c.device.GPIOA.split(&mut rcc.apb2);
         let mut gpiob = c.device.GPIOB.split(&mut rcc.apb2);
         let mut gpioc = c.device.GPIOC.split(&mut rcc.apb2);
@@ -131,8 +127,20 @@ const APP: () = {
         led.set_high().void_unwrap();
         let leds = Leds { caps_lock: led };
 
+        // set 0x1 in DR10 for dfu on reset
+        let bkp = rcc
+            .bkp
+            .constrain(c.device.BKP, &mut rcc.apb1, &mut c.device.PWR);
+        bkp.write_data_register_low(9, 1);
+
+        // BluePill board has a pull-up resistor on the D+ line.
+        // Pull the D+ pin down to send a RESET condition to the USB bus.
+        let mut usb_dp = gpioa.pa12.into_push_pull_output(&mut gpioa.crh);
+        usb_dp.set_low().unwrap();
+        cortex_m::asm::delay(clocks.sysclk().0 / 100);
+
         let usb_dm = gpioa.pa11;
-        let usb_dp = gpioa.pa12.into_floating_input(&mut gpioa.crh);
+        let usb_dp = usb_dp.into_floating_input(&mut gpioa.crh);
 
         *USB_BUS = Some(UsbBus::new(c.device.USB, (usb_dm, usb_dp)));
         let usb_bus = USB_BUS.as_ref().unwrap();
@@ -196,6 +204,7 @@ const APP: () = {
             .debouncer
             .update(c.resources.matrix.get().void_unwrap())
         {
+            cortex_m_semihosting::dbg!("event");
             let data = c.resources.debouncer.get();
             let report = c.resources.layout.report_from_pressed(data.iter_pressed());
             c.resources

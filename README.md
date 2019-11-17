@@ -23,6 +23,20 @@ cargo objcopy --bin ortho60-keyberon --release -- -O binary ortho60-keyberon.bin
 
 Now flash the generated `ortho60-keyberon.bin` file by following https://docs.cannonkeys.com/flashing/
 
+## Tricks
+
+reflash black bootloader:
+
+```shell
+openocd -f interface/stlink-v2.cfg -f target/stm32f1x.cfg -c "init; reset halt; stm32f1x mass_erase 0; program generic_boot20_pc13.bin exit 0x08000000"
+```
+
+flash with dfu:
+
+```shell
+sudo dfu-util -d 1eaf:0003 -a 2 -D ortho60-keyberon.bin
+```
+
 ## References
 
 - https://github.com/TeXitoi/keyberon
