@@ -1,0 +1,18 @@
+[package]
+name = "ortho60-keyberon"
+version = "0.1.0"
+authors = ["Guillaume Pinot <texitoi@texitoi.eu>"]
+edition = "2018"
+
+[dependencies]
+stm32f1xx-hal = { version = "0.4", features = ["rt", "stm32f103" ] }
+cortex-m = "0.6"
+cortex-m-rt = { version = "0.6.6", features = ["device"] }
+panic-semihosting = "0.5"
+void = { version = "1", default_features = false }
+keyberon = { git = "https://github.com/TeXitoi/keyberon" }
+stm32-usbd = { version = "0.4.0", features = ["stm32f103xx"] }
+cortex-m-rtfm = "0.5"
+generic-array = "0.13"
+embedded-hal = "0.2"
+usb-device = "0.2.0"
