@@ -132,11 +132,11 @@ const APP: () = {
         let mut gpiob = c.device.GPIOB.split(&mut rcc.apb2);
         let mut gpioc = c.device.GPIOC.split(&mut rcc.apb2);
 
-        // set 0x1 in DR10 for dfu on reset
+        // set 0x424C in DR10 for dfu on reset
         let bkp = rcc
             .bkp
             .constrain(c.device.BKP, &mut rcc.apb1, &mut c.device.PWR);
-        bkp.write_data_register_low(9, 1);
+        bkp.write_data_register_low(9, 0x424C);
 
         // BluePill board has a pull-up resistor on the D+ line.
         // Pull the D+ pin down to send a RESET condition to the USB bus.
