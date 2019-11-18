@@ -73,7 +73,9 @@ impl_heterogenous_array! {
 
 // Shift + KeyCode
 macro_rules! s {
-    ($k:ident) => { m(&[LShift, $k]) }
+    ($k:ident) => {
+        m(&[LShift, $k])
+    };
 }
 
 #[rustfmt::skip]
