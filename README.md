@@ -2,29 +2,24 @@
 
 Keyberon port to the [Canon Keys Ortho60](https://cannonkeys.com/collections/frontpage/products/ortho60)
 
-This is a work in progress. Currently, it should be functionnal without bootloader. I don't have the hardware, so not tested.
-
 ## Installing the precompiled firmware
 
-Download the [precompiled firmware](ortho60-keyberon.bin).
+Download the [precompiled firmware](ortho60-keyberon.bin) and install
+it as described in the [official
+documentation](https://docs.cannonkeys.com/flashing/).
 
-Install openocd:
-
-```shell
-sudo apt-get install openocd
-```
-
-Plug the ST-Link to the blue pill.
-
-Open a shell in the directory where you downloaded the firmware and type:
+Sort version: while the keyboard is connected to USB, press the reset
+button on the blue pill.  The green LED should blink. In a terminal, type
 
 ```shell
-openocd -f interface/stlink-v2.cfg -f target/stm32f1x.cfg -c "program ortho60-keyberon.bin exit 0x08000000"
+sudo dfu-util -d 1eaf:0003 -a 2 -D ortho60-keyberon.bin
 ```
+
+Push reset and you're ready to go.
 
 ## Installing a custom firmware
 
-First install the rust toolchain:
+First install the rust toolchain by typing, as user, these 4 commands:
 
 ```shell
 curl https://sh.rustup.rs -sSf | sh
@@ -38,13 +33,11 @@ Then build:
 ```shell
 git clone https://github.com/TeXitoi/ortho60-keyberon
 cd ortho60-keyberon
-# edit src/main.rs to customize keymap
+# edit src/layout.rs to customize your layout
 cargo objcopy --bin ortho60-keyberon --release -- -O binary ortho60-keyberon.bin
 ```
 
 Now flash the generated `ortho60-keyberon.bin` file by following the instructions in the previous section.
-
-You can also compile and flash using `cargo run --release`. See https://github.com/TeXitoi/blue-pill-quickstart
 
 ## Notes
 
@@ -54,13 +47,7 @@ reflash bootloader:
 openocd -f interface/stlink-v2.cfg -f target/stm32f1x.cfg -c "init; reset halt; stm32f1x mass_erase 0; program generic_boot20_pc13.bin exit 0x08000000"
 ```
 
-flash with dfu:
-
-```shell
-sudo dfu-util -d 1eaf:0003 -a 2 -D ortho60-keyberon.bin
-```
-
-Cannonkeys flash proceddure: https://docs.cannonkeys.com/flashing/
+Cannonkeys flash procedure: https://docs.cannonkeys.com/flashing/
 
 ## References
 

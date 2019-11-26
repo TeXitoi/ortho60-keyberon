@@ -3,11 +3,8 @@
 
 use embedded_hal::digital::v2::{InputPin, OutputPin};
 use generic_array::typenum::{U12, U5};
-use keyberon::action::Action::Trans;
-use keyberon::action::{k, l, m};
 use keyberon::debounce::Debouncer;
 use keyberon::impl_heterogenous_array;
-use keyberon::key_code::KeyCode::*;
 use keyberon::layout::Layout;
 use keyberon::matrix::{Matrix, PressedKeys};
 use panic_semihosting as _;
@@ -19,6 +16,8 @@ use stm32f1xx_hal::{gpio, pac, timer};
 use usb_device::bus::UsbBusAllocator;
 use usb_device::class::UsbClass as _;
 use void::{ResultVoidExt, Void};
+
+mod layout;
 
 type UsbClass = keyberon::Class<'static, UsbBusType, Leds>;
 type UsbDevice = keyberon::Device<'static, UsbBusType>;
@@ -71,36 +70,6 @@ impl_heterogenous_array! {
     [0, 1, 2, 3, 4]
 }
 
-// Shift + KeyCode
-macro_rules! s {
-    ($k:ident) => {
-        m(&[LShift, $k])
-    };
-}
-
-#[rustfmt::skip]
-pub static LAYERS: keyberon::layout::Layers = &[
-    &[
-        &[k(Grave), k(Kb1),k(Kb2),k(Kb3), k(Kb4), k(Kb5),  k(Kb6),  k(Kb7),k(Kb8), k(Kb9),  k(Kb0),   k(BSpace)],
-        &[k(Tab),   k(Q),  k(W),  k(E),   k(R),   k(T),    k(Y),    k(U),  k(I),   k(O),    k(P),     k(Delete)],
-        &[k(Escape),k(A),  k(S),  k(D),   k(F),   k(G),    k(H),    k(J),  k(K),   k(L),    k(SColon),k(Quote) ],
-        &[k(LShift),k(Z),  k(X),  k(C),   k(V),   k(B),    k(N),    k(M),  k(Comma),k(Dot), k(Slash), k(Enter) ],
-        &[k(LCtrl), k(LCtrl),k(LAlt),k(LGui),l(1),k(Space),k(Space),l(2),  k(Left),k(Down), k(Up),    k(Right) ],
-    ], &[
-        &[s!(Grave), s!(Kb1),s!(Kb2),s!(Kb3), s!(Kb4), s!(Kb5),  s!(Kb6),s!(Kb7),      s!(Kb8),         s!(Kb9),     s!(Kb0),     k(BSpace)        ],
-        &[s!(Grave), s!(Kb1),s!(Kb2),s!(Kb3), s!(Kb4), s!(Kb5),  s!(Kb6),s!(Kb7),      s!(Kb8),         s!(Kb9),     s!(Kb0),     k(Delete)        ],
-        &[k(Delete), k(F1),  k(F2),  k(F3),   k(F4),   k(F5),    k(F6),  s!(Minus),    s!(Equal),       s!(LBracket),s!(RBracket),s!(Bslash)       ],
-        &[Trans,     k(F7),  k(F8),  k(F9),   k(F10),  k(F11),   k(F12), s!(NonUsHash),s!(NonUsBslash), Trans,       Trans,       Trans            ],
-        &[Trans,     Trans,  Trans,  Trans,   Trans,   Trans,    Trans,  Trans,        k(MediaNextSong),k(VolDown),  k(VolUp),    k(MediaPlayPause)],
-    ], &[
-        &[k(Grave), k(Kb1),k(Kb2),k(Kb3), k(Kb4), k(Kb5),  k(Kb6),k(Kb7),      k(Kb8),          k(Kb9),     k(Kb0),     k(BSpace)        ],
-        &[k(Grave), k(Kb1),k(Kb2),k(Kb3), k(Kb4), k(Kb5),  k(Kb6),k(Kb7),      k(Kb8),          k(Kb9),     k(Kb0),     k(Delete)        ],
-        &[k(Delete),k(F1), k(F2), k(F3),  k(F4),  k(F5),   k(F6), k(Minus),    k(Equal),        k(LBracket),k(RBracket),k(Bslash)        ],
-        &[Trans,    k(F7), k(F8), k(F9),  k(F10), k(F11),  k(F12),k(NonUsHash),k(NonUsBslash),  Trans,      Trans,      Trans            ],
-        &[Trans,    Trans, Trans, Trans,  Trans,  Trans,   Trans, Trans,       k(MediaNextSong),k(VolDown), k(VolUp),   k(MediaPlayPause)],
-    ]
-];
-
 #[app(device = stm32f1xx_hal::pac, peripherals = true)]
 const APP: () = {
     struct Resources {
@@ -108,7 +77,7 @@ const APP: () = {
         usb_class: UsbClass,
         matrix: Matrix<Cols, Rows>,
         debouncer: Debouncer<PressedKeys<U5, U12>>,
-        #[init(Layout::new(LAYERS))]
+        #[init(Layout::new(layout::LAYERS))]
         layout: Layout,
         timer: timer::Timer<pac::TIM3>,
     }
@@ -121,25 +90,22 @@ const APP: () = {
         let mut rcc = c.device.RCC.constrain();
         let mut afio = c.device.AFIO.constrain(&mut rcc.apb2);
 
-        let clocks = rcc
-            .cfgr
-            .use_hse(8.mhz())
-            .sysclk(48.mhz())
-            .pclk1(24.mhz())
-            .freeze(&mut flash.acr);
-
-        let mut gpioa = c.device.GPIOA.split(&mut rcc.apb2);
-        let mut gpiob = c.device.GPIOB.split(&mut rcc.apb2);
-        let mut gpioc = c.device.GPIOC.split(&mut rcc.apb2);
-
         // set 0x424C in DR10 for dfu on reset
         let bkp = rcc
             .bkp
             .constrain(c.device.BKP, &mut rcc.apb1, &mut c.device.PWR);
         bkp.write_data_register_low(9, 0x424C);
 
-        // power off usb
-        c.device.USB.cntr.modify(|_, w| w.pdwn().set_bit());
+        let clocks = rcc
+            .cfgr
+            .use_hse(8.mhz())
+            .sysclk(72.mhz())
+            .pclk1(36.mhz())
+            .freeze(&mut flash.acr);
+
+        let mut gpioa = c.device.GPIOA.split(&mut rcc.apb2);
+        let mut gpiob = c.device.GPIOB.split(&mut rcc.apb2);
+        let mut gpioc = c.device.GPIOC.split(&mut rcc.apb2);
 
         // BluePill board has a pull-up resistor on the D+ line.
         // Pull the D+ pin down to send a RESET condition to the USB bus.
