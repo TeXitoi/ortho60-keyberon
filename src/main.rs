@@ -5,6 +5,7 @@ use embedded_hal::digital::v2::{InputPin, OutputPin};
 use generic_array::typenum::{U12, U5};
 use keyberon::debounce::Debouncer;
 use keyberon::impl_heterogenous_array;
+use keyberon::key_code::{KbHidReport, KeyCode};
 use keyberon::layout::Layout;
 use keyberon::matrix::{Matrix, PressedKeys};
 use panic_semihosting as _;
@@ -77,7 +78,6 @@ const APP: () = {
         usb_class: UsbClass,
         matrix: Matrix<Cols, Rows>,
         debouncer: Debouncer<PressedKeys<U5, U12>>,
-        #[init(Layout::new(layout::LAYERS))]
         layout: Layout,
         timer: timer::Timer<pac::TIM3>,
     }
@@ -159,8 +159,9 @@ const APP: () = {
             usb_dev,
             usb_class,
             timer,
-            debouncer: Debouncer::new(PressedKeys::new(), PressedKeys::new(), 5),
+            debouncer: Debouncer::new(PressedKeys::default(), PressedKeys::default(), 5),
             matrix: matrix.void_unwrap(),
+            layout: Layout::new(layout::LAYERS),
         }
     }
 
@@ -178,19 +179,24 @@ const APP: () = {
     fn tick(mut c: tick::Context) {
         c.resources.timer.clear_update_interrupt_flag();
 
-        if c.resources
+        for event in c
+            .resources
             .debouncer
-            .update(c.resources.matrix.get().void_unwrap())
+            .events(c.resources.matrix.get().unwrap())
         {
-            let data = c.resources.debouncer.get();
-            let report = c.resources.layout.report_from_pressed(data.iter_pressed());
-            c.resources
-                .usb_class
-                .lock(|k| k.device_mut().set_keyboard_report(report.clone()));
-            while let Ok(0) = c.resources.usb_class.lock(|k| k.write(report.as_bytes())) {}
+            send_report(c.resources.layout.event(event), &mut c.resources.usb_class);
         }
+        send_report(c.resources.layout.tick(), &mut c.resources.usb_class);
     }
 };
+
+fn send_report(iter: impl Iterator<Item = KeyCode>, usb_class: &mut resources::usb_class<'_>) {
+    use rtfm::Mutex;
+    let report: KbHidReport = iter.collect();
+    if usb_class.lock(|k| k.device_mut().set_keyboard_report(report.clone())) {
+        while let Ok(0) = usb_class.lock(|k| k.write(report.as_bytes())) {}
+    }
+}
 
 fn usb_poll(usb_dev: &mut UsbDevice, keyboard: &mut UsbClass) {
     if usb_dev.poll(&mut [keyboard]) {
