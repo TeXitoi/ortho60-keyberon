@@ -1,6 +1,6 @@
 # ortho60-keyberon [![Build status](https://travis-ci.org/TeXitoi/ortho60-keyberon.svg?branch=master)](https://travis-ci.org/TeXitoi/ortho60-keyberon)
 
-Keyberon port to the [Canon Keys Ortho60](https://cannonkeys.com/collections/frontpage/products/ortho60)
+Keyberon port to the [Cannon Keys Ortho60](https://cannonkeys.com/collections/frontpage/products/ortho60)
 
 ## Installing the precompiled firmware
 
